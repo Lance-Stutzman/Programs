@@ -21,19 +21,30 @@ package edu.nmsu.cs.webserver;
  *
  **/
 
+ //IMPORTANT NOTE: All added code to SimpleWebServer was written by me, however I was aided by Dr. Bill Hamilton
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.FileReader;
 import java.net.Socket;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.TimeZone;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
 
 public class WebWorker implements Runnable
 {
-
+	private String path; //variable that designates file path
 	private Socket socket;
+	private String line; //variables for reading in lines and correctly parsing
+	private String resp = " ";
+	private byte readArray[] = new byte[128]; 
 
 	/**
 	 * Constructor: must have a valid open socket
@@ -51,13 +62,52 @@ public class WebWorker implements Runnable
 	public void run()
 	{
 		System.err.println("Handling connection...");
+		System.out.println(path); 
+		System.out.println("Working Directory = " + System.getProperty("user.dir"));
+
 		try
 		{
-			InputStream is = socket.getInputStream();
-			OutputStream os = socket.getOutputStream();
-			readHTTPRequest(is);
-			writeHTTPHeader(os, "text/html");
-			writeContent(os);
+			InputStream is = socket.getInputStream(); //coming to me from client
+			OutputStream os = socket.getOutputStream(); //coming from me 
+			boolean fileFound = true; 
+			int code;
+			String message;
+			readHTTPRequest(is); //browser makes request
+			// ./rec/acc/test.html 
+			path = "." + path; 
+			System.out.println(path); // test path
+			File myObj = new File(path);
+			DataInputStream dataIO = null; //changed buffered reader to datainput stream
+			try
+			{
+			dataIO = new DataInputStream((new FileInputStream(myObj)));
+			}
+			catch (FileNotFoundException x)
+			{
+				fileFound = false; 
+			}
+			
+			if (fileFound) //file found provide 200 code O.K. and post the file
+			{
+				code = 200;
+				message = "O.K.";
+				if (path.contains("jpg"))
+				{
+				writeHTTPHeader(os, "image/jpeg", code, message); //receive either jpeg 
+				}
+				else {
+					writeHTTPHeader(os, "image/png", code, message); //or png
+					}
+				writeContent(os, dataIO); 
+				
+			}
+			else //provides error code upon not finding file. 
+			{
+				code = 404; 
+				message = "File Not Found";
+				writeHTTPHeader(os, "text/html", code, message);
+			}
+			
 			os.flush();
 			socket.close();
 		}
@@ -69,20 +119,34 @@ public class WebWorker implements Runnable
 		return;
 	}
 
+	
+	
 	/**
 	 * Read the HTTP request header.
 	 **/
-	private void readHTTPRequest(InputStream is)
+	private void readHTTPRequest(InputStream is) //reads in input stream, try catch format, wait until (using r.ready) to read in input up to one carriage return.
+												// print to console for debugging purposes. Here is where we serve the file back to the browswer. The browser asks for the 
+												// file here.
+
+												// return string with file name, remember to change return types and handle errors
+												//main purpose of read is to get the file path out to me before the file can be given to the browser
 	{
 		String line;
 		BufferedReader r = new BufferedReader(new InputStreamReader(is));
-		while (true)
+		boolean firstLine = true;
+		while (true) 
 		{
 			try
 			{
 				while (!r.ready())
 					Thread.sleep(1);
 				line = r.readLine();
+				if (firstLine == true )
+					{
+						 path = line.split(" ")[1]; 
+						 firstLine = false;
+
+					}
 				System.err.println("Request line: (" + line + ")");
 				if (line.length() == 0)
 					break;
@@ -104,21 +168,21 @@ public class WebWorker implements Runnable
 	 * @param contentType
 	 *          is the string MIME content type (e.g. "text/html")
 	 **/
-	private void writeHTTPHeader(OutputStream os, String contentType) throws Exception
-	{
+	private void writeHTTPHeader(OutputStream os, String contentType, int code, String message) throws Exception //writeHTTPHeader changed to receive variables that provide corresponding codes and messages. 
+	{   //these lines are what are changed when the file is requested and found successfully or not found. 
 		Date d = new Date();
 		DateFormat df = DateFormat.getDateTimeInstance();
 		df.setTimeZone(TimeZone.getTimeZone("GMT"));
-		os.write("HTTP/1.1 200 OK\n".getBytes());
+		os.write(("HTTP/1.1 " + code + " " + message).getBytes());
 		os.write("Date: ".getBytes());
 		os.write((df.format(d)).getBytes());
 		os.write("\n".getBytes());
-		os.write("Server: Jon's very own server\n".getBytes());
+		os.write("Server: The Tai-Pan's very own server\n".getBytes());
 		// os.write("Last-Modified: Wed, 08 Jan 2003 23:11:55 GMT\n".getBytes());
 		// os.write("Content-Length: 438\n".getBytes());
 		os.write("Connection: close\n".getBytes());
 		os.write("Content-Type: ".getBytes());
-		os.write(contentType.getBytes());
+		os.write(contentType.getBytes()); //influences content type that will be served
 		os.write("\n\n".getBytes()); // HTTP header ends with 2 newlines
 		return;
 	}
@@ -130,11 +194,29 @@ public class WebWorker implements Runnable
 	 * @param os
 	 *          is the OutputStream object to write to
 	 **/
-	private void writeContent(OutputStream os) throws Exception
+	private void writeContent(OutputStream os, DataInputStream io) throws Exception  //error messages
 	{
-		os.write("<html><head></head><body>\n".getBytes());
-		os.write("<h3>My web server works!</h3>\n".getBytes());
-		os.write("</body></html>\n".getBytes());
+	 int numBytesRead = 0; 
+	 
+
+		if (io == null)
+			{
+				os.write("<html><head></head><body>\n".getBytes());
+				os.write("<h3> ERROR 404: File Not Found</h3>\n".getBytes());
+				os.write("</body></html>\n".getBytes()); 
+			} 
+		else //reads bytes into readArray and while numBytesRead != -1, continue to write readArray to outputstream. 
+		{
+			numBytesRead = io.read(readArray); 
+			while (numBytesRead != -1)
+			{
+				os.write(readArray, 0, numBytesRead);
+				numBytesRead = io.read(readArray); //continues to execute while the condition is true, when false it stops
+			}
+			io.close();
+		}
+		
+		//send file or text saying it cant be found 
 	}
 
 } // end class

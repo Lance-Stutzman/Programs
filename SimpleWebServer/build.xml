@@ -1,1 +1,87 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<project name="SimpleWebServer" default="compile" basedir=".">
+  <description>
+    Compile and Run SimpleWebServer
+  </description>
+  <!-- set global properties for this bin -->
+  <property name="src" location="src"/>
+  <property name="bin" location="bin"/>
+  <property name="dist" location="dist"/>
+  <!-- <property name = "workingDir" location = "www"/> -->
+
+  <!-- <target name="init">
+     Create the time stamp -->
+    <!-- <tstamp/> -->
+    <!-- Create the bin directory structure used by compile -->
+    <!-- <mkdir dir="${bin}"/> -->
+  <!-- </target> -->
+
+  <target name="compile">
+    <!-- Compile the Java code from ${src} into ${bin} -->
+    <mkdir dir = "${bin}" />
+    <javac srcdir="${src}" destdir="${bin}"/>
+        <java classname = "edu.nmsu.cs.webserver.WebServer"  classpath = "${bin}" />
+  </target>
+
+
+
+  <target name="clean"
+        description="clean up">
+    <!-- Delete the ${bin} and ${dist} directory trees -->
+    <delete dir="${bin}"/>
+    <delete dir="${dist}"/>
+  </target>
+</project>
+
+<!-- get absolute path method -->
+
+
+
+
+
+
+
+
+
+
+
+<!-- <project name = "SimpleWebServer" default = "dist" basedir = ".">
+<description>
+  bin for SimpleWeb Server
+</description>
+
+<property name = "src" location = "src/"/>
+<property name = "bin" location = "bin/"/>
+<property name = "dist" location = "dist"/>
+
+  
+
+  
+<target name="bin">
+    <mkdir dir="${bin}"/>
+    <mkdir dir = "${bin}"/>
+    <javac srcdir = "${src}" destdir = "${bin}"/>
+  </target>
+
+<target name = "dist" depends = "compile">
+   <mkdir dir = "${dist}/lib"/>
+  
+<jar jarfile = "${dist}/lib/SimpleWebServer-${DSTAMP}.jar" basedir = "${bin}"/>
+  </target>
+
+<target name = "clean">
+  <delete dir = "${bin.dir}"/>
+  <delete dir = "${dist}"/>
+  </target>
+
+<target name = "compile" description = "initial compilation">
+<javac srcdir = "${src}" destdir = "${bin}" />
+</target>
+
+
+<target name = "run" depends = "bin">
+<java classname = "edu.nmsu.cs.webserver.WebServer"  classpath = "${bin}" />
+</target>
+  
+ 
+  
+</project> -->
